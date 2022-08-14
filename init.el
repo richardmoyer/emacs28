@@ -26,8 +26,10 @@
 
 (set-face-attribute 'default nil :font "Iosevka" :height 120)
 
+(set-face-attribute 'variable-pitch nil :font "Cantarell" :height 120 :weight 'regular)
 (load-theme 'modus-operandi)
-;;(load-theme 'doom-opera-light)
+;(load-theme 'spacemacs-light)
+;(load-theme 'tomorrow)
 
 ;; Make ESC quit prompts
 (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
@@ -85,11 +87,19 @@
 (use-package all-the-icons :ensure t)
 
 
-(use-package doom-modeline
-  :ensure t
-  :init (doom-modeline-mode 1))
+;; (use-package doom-modeline
+;;   :ensure t
+;;   :init (doom-modeline-mode 1))
+(use-package doom-themes
+  :config
+  (doom-themes-org-config))
 
-(use-package doom-themes)
+
+(use-package doom-modeline
+  :init (doom-modeline-mode)
+  :custom
+  (doom-modeline-icon (display-graphic-p))
+  (doom-modeline-mu4e t))
 
 (use-package rainbow-delimiters
   :ensure t
@@ -125,15 +135,58 @@
 
 (use-package general)
 
+;(use-package helpful
+;  :custom
+;  (counsel-describe-function-function #'helpful-callable)
+;  (counsel-describe-variable-function #'helpful-variable)
+;  :bind
+;  ([remap describe-function] . counsel-describe-function)
+;  ([remap describe-command] . helpful-command)
+;  ([remap describe-variable] . counsel-describe-variable)
+;  ([remap describe-key] . helpful-key))
+
 (use-package helpful
-  :custom
-  (counsel-describe-function-function #'helpful-callable)
-  (counsel-describe-variable-function #'helpful-variable)
+  :commands (helpful-at-point
+             helpful-callable
+             helpful-command
+             helpful-function
+             helpful-key
+             helpful-macro
+             helpful-variable)
   :bind
-  ([remap describe-function] . counsel-describe-function)
-  ([remap describe-command] . helpful-command)
-  ([remap describe-variable] . counsel-describe-variable)
-  ([remap describe-key] . helpful-key))
+  ([remap display-local-help] . helpful-at-point)
+  ([remap describe-function] . helpful-callable)
+  ([remap describe-variable] . helpful-variable)
+  ([remap describe-symbol] . helpful-symbol)
+  ([remap describe-key] . helpful-key)
+  ([remap describe-command] . helpful-command))
+
+;; (use-package savehist
+;;   :ensure nil
+;;   :custom
+;;   (history-delete-duplicates t)
+;;   (history-length 25)
+;;   (savehist-file (expand-file-name (format "~/.emacs.d/history" xdg-cache)))
+;;   :config (savehist-mode))
+
+(use-package window
+  :ensure nil
+  :bind (("C-x 2" . vsplit-last-buffer)
+         ("C-x 3" . hsplit-last-buffer)
+         ;; Don't ask before killing a buffer.
+         ([remap kill-buffer] . kill-this-buffer))
+  :preface
+  (defun hsplit-last-buffer ()
+    "Focus to the last created horizontal window."
+    (interactive)
+    (split-window-horizontally)
+    (other-window 1))
+
+  (defun vsplit-last-buffer ()
+    "Focus to the last created vertical window."
+    (interactive)
+    (split-window-vertically)
+    (other-window 1)))
 
 (use-package evil
   :init
@@ -166,10 +219,23 @@
   ("k" text-scale-decrease "out")
   ("f" nil "finished" :exit t))
 
-(use-package all-the-icons-dired)
-(add-hook 'dired-mode-hook 'all-the-icons-dired-mode)
+(use-package all-the-icons-dired
+  :if (display-graphic-p)
+  :hook (dired-mode-hook . all-the-icons-dired-mode))
 
-(use-package pdf-tools)
+(use-package dired-hide-dotfiles
+  :hook (dired-mode . dired-hide-dotfiles-mode)
+  :bind (:map dired-mode-map
+              ("H" . dired-hide-dotfiles-mode)))
+(use-package dired-subtree
+  :after dired
+  :bind (:map dired-mode-map
+              ("<tab>" . dired-subtree-toggle)))
+
+(use-package pdf-tools
+  :magic ("%PDF" . pdf-view-mode)
+  :config
+  (setq blink-cursor-mode nil))
 
 (use-package projectile
   :diminish projectile-mode
@@ -197,3 +263,112 @@
 ;; - https://magit.vc/manual/forge/Token-Creation.html#Token-Creation
 ;; - https://magit.vc/manual/ghub/Getting-Started.html#Getting-Started
 (use-package forge)
+
+
+(defun efs/org-mode-setup ()
+  (org-indent-mode)
+  (variable-pitch-mode 1)
+  (visual-line-mode 1))
+
+;; Org Mode Configuration ------------------------------------------------------
+
+(defun efs/org-font-setup ()
+  ;; Replace list hyphen with dot
+  (font-lock-add-keywords 'org-mode
+                          '(("^ *\\([-]\\) "
+                             (0 (prog1 () (compose-region (match-beginning 1) (match-end 1) "•"))))))
+
+  ;; Set faces for heading levels
+  (dolist (face '((org-level-1 . 1.2)
+                  (org-level-2 . 1.1)
+                  (org-level-3 . 1.05)
+                  (org-level-4 . 1.0)
+                  (org-level-5 . 1.1)
+                  (org-level-6 . 1.1)
+                  (org-level-7 . 1.1)
+                  (org-level-8 . 1.1)))
+    (set-face-attribute (car face) nil :font "Cantarell" :weight 'regular :height (cdr face)))
+
+  ;; Ensure that anything that should be fixed-pitch in Org files appears that way
+  (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-code nil   :inherit '(shadow fixed-pitch))
+  (set-face-attribute 'org-table nil   :inherit '(shadow fixed-pitch))
+  (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
+  (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
+  (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
+  (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch))
+
+(use-package org
+  :hook (org-mode . efs/org-mode-setup)
+  :config
+  (setq org-ellipsis " ▾")
+  (setq org-agenda-include-diary t)
+  (efs/org-font-setup))
+
+(use-package org-bullets
+  :after org
+  :hook (org-mode . org-bullets-mode)
+  :custom
+  (org-bullets-bullet-list '("◉" "○" "●" "○" "●" "○" "●")))
+
+(defun efs/org-mode-visual-fill ()
+  (setq visual-fill-column-width 100
+        visual-fill-column-center-text t)
+  (visual-fill-column-mode 1))
+
+(use-package visual-fill-column
+  :hook (org-mode . efs/org-mode-visual-fill))
+
+
+(use-package page-break-lines)
+
+(use-package dashboard
+  :custom
+  (dashboard-banner-logo-title "It ain’t over ’til it’s over")
+  (dashboard-center-content t)
+  (dashboard-items '((agenda)
+		     (recents . 5)
+                     (projects . 5)))
+  (dashboard-projects-switch-function 'counsel-projectile-switch-project-by-name)
+  (dashboard-set-file-icons t)
+  (dashboard-set-footer nil)
+  (dashboard-set-heading-icons t)
+  (dashboard-set-navigator t)
+  (dashboard-startup-banner 'logo)
+  :config
+  (dashboard-setup-startup-hook))
+
+;(use-package dashboard
+;  :init  
+;  (progn
+;    (setq dashboard-items '((recents . 5)
+;			    (agenda)
+;				     (projects . 5))))
+;  :config
+;  (dashboard-setup-startup-hook))
+(setq initial-buffer-choice (lambda () (get-buffer-create "*dashboard*")))
+
+(setq dashboard-week-agenda t)
+
+(use-package elfeed
+    :ensure t
+    :config
+    (setq elfeed-db-directory (expand-file-name "elfeed" user-emacs-directory)
+          elfeed-show-entry-switch 'display-buffer)
+    :bind
+    ("C-x w" . elfeed ))
+
+ (use-package elfeed-org
+    :ensure t
+    :config
+    (elfeed-org)
+    (setq rmh-elfeed-org-files (list "elfeed.org")))
+
+(use-package elfeed-goodies)
+(setq elfeed-goodies/entry-pane-position 'bottom)
+
+(setq rmh-elfeed-org-files (list "~/org/elfeed.org"))
+(global-set-key [remap list-buffers] 'ibuffer)
+
+(setq org-agenda-diary-file "~/org/diary")
+(setq calendar-mark-diary-entries-flag t)
